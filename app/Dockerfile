@@ -1,32 +1,45 @@
-FROM python:latest AS builder
+# ===========================
+# Stage 1 : build des deps
+# ===========================
+FROM python:3.11-slim AS builder
+
+# Empêche Python de bufferiser / d’écrire des .pyc
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Copy requirements.txt to the container
+# Install outils de build si besoin de compiler des libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copier seulement les requirements pour maximiser le cache
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --upgrade setuptools wheel
 
-# Install depdendencies
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# Installer les dépendances dans un dossier dédié
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir --target=/deps -r requirements.txt
 
-# Copy the application source code
+# Copier le code applicatif
 COPY . .
-RUN rm requirements.txt
 
-# Stage 2: Production stage
-FROM builder
+# ===========================
+# Stage 2 : image runtime
+# ===========================
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Copy the installed dependencies from the previous stage
-COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+# Copier les dépendances construites
+COPY --from=builder /deps /usr/local/lib/python3.11/site-packages
 
-# Copy the application source code from the previous stage
-COPY --from=builder /app/* .
+# Copier le code de l’appli
+COPY --from=builder /app /app
 
-
-# Expose port 5000
 EXPOSE 5000
 
-CMD ["python","app.py"]
+CMD ["python", "app.py"]

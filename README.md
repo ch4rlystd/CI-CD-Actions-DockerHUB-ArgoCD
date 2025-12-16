@@ -1,4 +1,58 @@
 # CI-CD-Actions-DockerHUB-Argo
 
 **CI/CD d'une application flask en utilisant Github Actions pour push des images Docker et les déployer avec Kubernetes et Argo CD**
-![Pipeline](img/Stack.png)
+![Pipeline](img/workflow.png)
+
+## Contexte - Pipeline GitOps intégrant DevOps
+
+### Étape 1
+
+* Application Flask simple dans [app/app.py](app/app.py)
+* Dockerfile qui permet de déployer l'application flask dans [app/Dockerfile](app/Dockerfile)
+* Workflow GitHub Actions dans [.github/workflows/dockerBuildPush.yml](.github/workflows/dockerBuildPush.yml)
+  * Créer des variables d'environnement secrètes (DOCKERHUB_TOKEN et DOCKERHUB_USERNAME) dans `Settings -> Secrets and variables -> Actions -> New repository secret`
+  * S'assurer d'avoir créer un repository dans Docker Hub qui porte le même nom que le repository GitHub utilisé pour cette pipeline
+* Vérifier que la pipeline s'exécute sans erreur
+* Vérifier que l'image a bien été envoyée dans le repository Docker Hub
+
+### Étape 2
+
+* Créer les fichiers K8s ([k8s/deployment.yml](k8s/deployment.yml) et [k8s/service.yml](k8s/service.yml))
+* Changer le "caimath1/ci-cd-actions-dockerhub-argo:main" dans le fichier [k8s/deployment.yml](k8s/deployment.yml)
+* Installer et lancer Argo cd
+
+    ```bash
+    # Installer le Load Balancer
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0-beta.0/deploy/static/provider/cloud/deploy.yaml
+
+    # Install Argo CD
+    kubectl create namespace argocd 
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    # Mapper les ports pour accéder à Argo cd
+    kubectl port-forward svc/argocd-server -n argocd 8080:443
+    ```
+
+* Se log dans Argo cd
+
+    ```bash
+    # Génerer son mot de passe
+    kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}'
+
+    # Décoder le base 64 reçu
+    # Se log avec les credentials admin:base64Décodé
+    ```
+
+* Déployer l'application dans Argo cd
+
+    ```bash
+    # Renseigner les champs
+    PROJECT: default
+    CLUSTER: https://kubernetes.default.svc
+    NAMESPACE: default
+    REPO URL: https://github.com/caimath/CI-CD-Actions-DockerHUB-Argo.git # Remplacer par l'URL de votre repo GitHub
+    PATH: k8s
+    ```
+
+* Résultat attendu
+![img/flask-appArgocd.png](img/flask-appArgocd.png)

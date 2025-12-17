@@ -79,6 +79,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add ${{ env.K8S_MANIFEST_PATH }}
-          git commit -m "chore(k8s): update image to ${{ env.IMAGE_TAG } in deployment.yml}"
+          git commit -m "chore(k8s): update image to ${{ env.IMAGE_TAG }} in deployment.yml"
           git push
         
